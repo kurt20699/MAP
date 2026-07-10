@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRMSU Admin Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+
+/* ── PROFILE PANEL ── */
+.profile-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(15,23,42,0.35);z-index:300;
+}
+.profile-overlay.active{display:block;}
+.profile-panel{
+  position:fixed;top:0;right:-380px;width:360px;height:100vh;
+  background:white;z-index:400;
+  box-shadow:-8px 0 32px rgba(15,58,82,0.18);
+  transition:right 0.35s cubic-bezier(0.4,0,0.2,1);
+  display:flex;flex-direction:column;overflow-y:auto;
+}
+.profile-panel.active{right:0;}
+.profile-panel-header{
+  background:linear-gradient(135deg,#0f2a3d,#1e5b7a);
+  padding:32px 24px 28px;text-align:center;position:relative;
+}
+.profile-close{
+  position:absolute;top:14px;right:14px;
+  width:32px;height:32px;border-radius:50%;
+  background:rgba(255,255,255,0.15);border:none;
+  color:white;font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background 0.2s;
+}
+.profile-close:hover{background:rgba(255,255,255,0.25);}
+.profile-avatar-lg{
+  width:90px;height:90px;border-radius:50%;
+  background:var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  font-size:32px;font-weight:800;color:white;
+  margin:0 auto 12px;
+  border:3px solid rgba(255,255,255,0.3);
+  overflow:hidden;
+}
+.profile-avatar-lg img{width:100%;height:100%;object-fit:cover;}
+.profile-panel-name{font-size:18px;font-weight:800;color:white;margin-bottom:4px;}
+.profile-panel-role{
+  display:inline-block;padding:3px 12px;border-radius:999px;
+  background:rgba(255,255,255,0.15);
+  font-size:11px;font-weight:700;color:rgba(255,255,255,0.9);
+  text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;
+}
+.profile-panel-id{font-size:12px;color:rgba(255,255,255,0.55);}
+.profile-section-title{
+  font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:1px;color:var(--blue);
+  padding:20px 24px 10px;
+}
+.profile-detail-card{
+  margin:0 16px;border-radius:12px;
+  border:1px solid var(--border);overflow:hidden;
+}
+.profile-detail-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:13px 16px;border-bottom:1px solid #f1f5f9;font-size:13px;
+}
+.profile-detail-row:last-child{border-bottom:none;}
+.profile-detail-label{color:var(--muted);font-weight:500;}
+.profile-detail-value{color:var(--text);font-weight:600;text-align:right;max-width:60%;}
+.profile-activity-card{
+  margin:0 16px;border-radius:12px;
+  border:1px solid var(--border);overflow:hidden;
+}
+.profile-signout{
+  margin:20px 16px 24px;
+  padding:13px;border-radius:10px;
+  background:#fff0f0;border:1.5px solid #fca5a5;
+  color:#dc2626;font-size:14px;font-weight:700;
+  cursor:pointer;width:calc(100% - 32px);
+  font-family:inherit;transition:background 0.2s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.profile-signout:hover{background:#fee2e2;}
+
+.profile-avatar-wrap{
+  position:relative;display:inline-block;margin:0 auto 12px;
+}
+.profile-avatar-edit{
+  position:absolute;bottom:2px;right:2px;
+  width:28px;height:28px;border-radius:50%;
+  background:var(--accent);border:2px solid white;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;cursor:pointer;
+  transition:transform 0.2s;
+}
+.profile-avatar-edit:hover{transform:scale(1.1);}
+#profilePhotoInput{display:none;}
+
+:root{
+  --sidebar-bg:    #0f2a3d;
+  --sidebar-hover: #1a3a52;
+  --sidebar-active:#1e5b7a;
+  --sidebar-text:  rgba(255,255,255,0.65);
+  --sidebar-w:     240px;
+  --blue:          #1e5b7a;
+  --dark-blue:     #0f3a52;
+  --light-blue:    #3b7ea2;
+  --accent:        #f0a500;
+  --green:         #34a853;
+  --red:           #ea4335;
+  --purple:        #6c63ff;
+  --bg:            #f0f4f8;
+  --surface:       #ffffff;
+  --border:        #e2e8f0;
+  --text:          #1a2b3c;
+  --muted:         #64748b;
+  --shadow:        0 2px 12px rgba(15,58,82,0.10);
+  --shadow-lg:     0 8px 32px rgba(15,58,82,0.14);
+}
+
+#roomMapPicker {
+  width: 100%;
+  height: 280px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  margin-top: 6px;
+  display: none;
+}
+.coords-display {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 5px 0;
+}
+
+body{font-family:"Sora","Segoe UI",sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:var(--sidebar-w);
+  background:var(--sidebar-bg);
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  position:fixed;
+  top:0;left:0;bottom:0;
+  z-index:200;
+  overflow-y:auto;
+}
+
+.sidebar-brand{
+  padding:22px 18px 18px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  border-bottom:1px solid rgba(255,255,255,0.07);
+}
+
+.sidebar-brand-icon{
+  width:36px;height:36px;
+  border-radius:10px;
+  background:linear-gradient(135deg,var(--blue),var(--light-blue));
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;flex-shrink:0;
+}
+
+.sidebar-brand-text .name{
+  font-family:"DM Serif Display",serif;
+  color:white;font-size:14px;font-weight:400;letter-spacing:0.2px;
+}
+.sidebar-brand-text .sub{
+  font-size:10px;color:rgba(255,255,255,0.4);margin-top:1px;
+}
+
+.sidebar-section-label{
+  font-size:9px;font-weight:700;letter-spacing:1.2px;
+  text-transform:uppercase;color:rgba(255,255,255,0.3);
+  padding:18px 18px 6px;
+}
+
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 18px;margin:1px 8px;
+  border-radius:9px;
+  color:var(--sidebar-text);
+  font-size:13px;font-weight:500;
+  cursor:pointer;
+  transition:background 0.18s,color 0.18s;
+  text-decoration:none;
+  user-select:none;
+}
+.nav-item:hover{background:var(--sidebar-hover);color:rgba(255,255,255,0.9);}
+.nav-item.active{background:var(--sidebar-active);color:white;font-weight:600;}
+.nav-item .nav-icon{font-size:16px;width:22px;text-align:center;flex-shrink:0;}
+
+.sidebar-footer{
+  margin-top:auto;
+  padding:14px 12px;
+  border-top:1px solid rgba(255,255,255,0.07);
+}
+.admin-chip{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border-radius:10px;
+  background:rgba(255,255,255,0.06);
+}
+.admin-avatar{
+  width:34px;height:34px;border-radius:50%;
+  background:var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:700;color:white;flex-shrink:0;
+}
+.admin-info .admin-name{font-size:12px;font-weight:700;color:white;}
+.admin-info .admin-role{font-size:10px;color:rgba(255,255,255,0.4);}
+.btn-signout{
+  margin-left:auto;background:none;border:none;
+  color:rgba(255,255,255,0.35);font-size:16px;cursor:pointer;
+  transition:color 0.2s;padding:2px;
+}
+.btn-signout:hover{color:#fca5a5;}
+.btn-profile{
+  margin-left:auto;background:none;border:none;
+  color:rgba(255,255,255,0.55);font-size:16px;cursor:pointer;
+  transition:color 0.2s;padding:2px;
+}
+.btn-profile:hover{color:white;}
+
+/* ── MAIN ── */
+.main{
+  margin-left:var(--sidebar-w);
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  min-height:100vh;
+}
+
+.topbar{
+  background:white;
+  border-bottom:1px solid var(--border);
+  padding:0 28px;
+  height:58px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+  box-shadow:0 1px 4px rgba(15,58,82,0.06);
+}
+.topbar-title{font-size:16px;font-weight:700;color:var(--text);}
+.topbar-time{font-size:12px;color:var(--muted);}
+
+.page-content{padding:28px;display:none;flex-direction:column;gap:24px;}
+.page-content.active{display:flex;}
+
+/* ── STATS ── */
+.stats-row{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+  gap:16px;
+}
+.stat-card{
+  background:white;border-radius:14px;padding:18px 20px;
+  border:1px solid var(--border);box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:14px;
+}
+.stat-icon{
+  width:46px;height:46px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;flex-shrink:0;
+}
+.stat-icon.blue   {background:#dbeafe;}
+.stat-icon.green  {background:#dcfce7;}
+.stat-icon.purple {background:#ede9fe;}
+.stat-icon.amber  {background:#fef3c7;}
+.stat-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:3px;}
+.stat-value{font-size:24px;font-weight:800;color:var(--text);line-height:1;}
+
+/* ── TABLE ── */
+.panel{
+  background:white;border-radius:14px;
+  border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;
+}
+.panel-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 22px;border-bottom:1px solid var(--border);background:#f8fafc;
+}
+.panel-title{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:700;color:var(--text);}
+.panel-title-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;}
+
+.table-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{padding:11px 18px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);border-bottom:1px solid var(--border);background:#f8fafc;}
+td{padding:13px 18px;border-bottom:1px solid #f1f5f9;color:var(--text);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:#f8fbff;}
+
+.role-badge{
+  display:inline-block;padding:2px 10px;border-radius:999px;
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;
+}
+.role-student  {background:#dbeafe;color:#1d4ed8;}
+.role-employee {background:#dcfce7;color:#15803d;}
+.role-visitor  {background:#fef3c7;color:#92400e;}
+.role-admin    {background:#fee2e2;color:#991b1b;}
+
+/* ── FORM PANEL ── */
+.panel-form{
+  padding:18px 22px;border-bottom:1px solid var(--border);
+  display:flex;flex-direction:column;gap:12px;
+}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+.form-group label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;color:var(--muted);}
+.form-input,.form-select,.form-textarea{
+  border:1.5px solid var(--border);border-radius:8px;
+  padding:9px 12px;font-size:13px;font-family:inherit;
+  color:var(--text);background:white;outline:none;
+  transition:border 0.2s,box-shadow 0.2s;
+}
+.form-input:focus,.form-select:focus,.form-textarea:focus{
+  border-color:var(--blue);box-shadow:0 0 0 3px rgba(30,91,122,0.1);
+}
+.form-textarea{resize:vertical;min-height:70px;}
+.form-actions{display:flex;justify-content:flex-end;gap:10px;}
+
+/* ── BUTTONS ── */
+.btn{
+  padding:9px 18px;border-radius:8px;font-size:13px;font-weight:700;
+  font-family:inherit;cursor:pointer;border:none;transition:all 0.2s;
+  display:inline-flex;align-items:center;gap:6px;
+}
+.btn-primary{background:var(--blue);color:white;}
+.btn-primary:hover{background:var(--dark-blue);transform:translateY(-1px);box-shadow:0 4px 12px rgba(30,91,122,0.25);}
+.btn-primary:disabled{opacity:0.6;cursor:not-allowed;transform:none;}
+.btn-ghost{background:transparent;color:var(--muted);border:1.5px solid var(--border);}
+.btn-ghost:hover{background:var(--bg);color:var(--text);}
+.btn-danger{background:var(--red);color:white;}
+.btn-danger:hover{background:#c0392b;}
+.btn-sm{padding:6px 12px;font-size:12px;}
+
+/* ── ITEMS LIST ── */
+.items-list{
+  padding:12px 22px 18px;
+  display:flex;flex-direction:column;gap:9px;
+  max-height:380px;overflow-y:auto;
+}
+.item-card{
+  border:1px solid var(--border);border-radius:10px;
+  padding:12px 14px;display:flex;align-items:flex-start;gap:11px;
+  background:#fafbfc;transition:box-shadow 0.2s,border-color 0.2s;
+}
+.item-card:hover{border-color:#cbd5e1;box-shadow:0 2px 8px rgba(15,58,82,0.07);}
+.item-badge{
+  padding:3px 9px;border-radius:999px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:0.4px;flex-shrink:0;
+}
+.badge-info     {background:#dbeafe;color:#1d4ed8;}
+.badge-warning  {background:#fef3c7;color:#92400e;}
+.badge-emergency{background:#fee2e2;color:#991b1b;}
+.badge-event    {background:#ede9fe;color:#5b21b6;}
+.item-body{flex:1;min-width:0;}
+.item-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.item-meta{font-size:11px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;}
+.item-desc{font-size:12px;color:#475569;margin-top:3px;line-height:1.45;}
+.item-actions{display:flex;gap:5px;flex-shrink:0;}
+.icon-btn{
+  width:28px;height:28px;border-radius:7px;
+  border:1px solid var(--border);background:white;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:13px;
+  transition:all 0.15s;
+}
+.icon-btn:hover{transform:scale(1.1);}
+.icon-btn.delete:hover{background:#fee2e2;border-color:#fca5a5;}
+.loading-msg{text-align:center;padding:28px;color:var(--muted);font-size:13px;}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:22px;right:22px;
+  padding:11px 18px;border-radius:10px;
+  font-size:13px;font-weight:600;color:white;
+  z-index:9999;transform:translateY(80px);opacity:0;
+  transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow:var(--shadow-lg);
+}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{background:#16a34a;}
+.toast.error{background:#dc2626;}
+.toast.info{background:var(--blue);}
+
+/* ── MODAL ── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(15,23,42,0.45);z-index:500;
+  align-items:center;justify-content:center;
+}
+.modal-overlay.active{display:flex;}
+.modal-box{
+  background:white;border-radius:16px;padding:26px;
+  max-width:390px;width:90%;box-shadow:var(--shadow-lg);text-align:center;
+}
+.modal-box h3{font-size:17px;margin-bottom:7px;color:var(--text);}
+.modal-box p{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.5;}
+.modal-actions{display:flex;gap:10px;justify-content:center;}
+
+/* ── EMPTY STATE ── */
+.empty-state{
+  text-align:center;padding:40px 20px;color:var(--muted);font-size:13px;
+}
+.empty-state .emoji{font-size:30px;display:block;margin-bottom:8px;}
+
+/* ── SECTION HEADER ── */
+.section-eyebrow{
+  font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:1px;color:var(--muted);margin-bottom:4px;
+}
+.section-heading{font-size:20px;font-weight:800;color:var(--text);}
+
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);}
+  .main{margin-left:0;}
+  .form-row{grid-template-columns:1fr;}
+  .stats-row{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════ SIDEBAR ══════════ -->
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-icon">🎓</div>
+    <div class="sidebar-brand-text">
+      <div class="name">PRMSU Navigator</div>
+      <div class="sub">Admin Dashboard</div>
+    </div>
+  </div>
+
+  <div class="sidebar-section-label">Overview</div>
+  <div class="nav-item active" onclick="showPage('overview',this)">
+    <span class="nav-icon">🏠</span> Overview
+  </div>
+
+  <div class="sidebar-section-label">Manage</div>
+  <div class="nav-item" onclick="showPage('alerts',this)">
+    <span class="nav-icon">📢</span> Campus Alerts
+  </div>
+  <div class="nav-item" onclick="showPage('buildings',this)">
+    <span class="nav-icon">🏛️</span> Buildings
+  </div>
+  <div class="nav-item" onclick="showPage('rooms',this)">
+    <span class="nav-icon">🚪</span> Rooms
+  </div>
+  <div class="nav-item" onclick="showPage('users',this)">
+    <span class="nav-icon">👥</span> Users
+  </div>
+
+  <div class="sidebar-footer">
+    <div class="admin-chip" onclick="openProfile()" style="cursor:pointer;">
+      <div class="admin-avatar" id="sidebarAvatar">A</div>
+      <div class="admin-info">
+        <div class="admin-name" id="sidebarName">Admin</div>
+        <div class="admin-role">Administrator</div>
+      </div>
+      <button class="btn-profile" title="View Profile" onclick="openProfile()">👤</button>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════ MAIN ══════════ -->
+<div class="main">
+
+  <div class="topbar">
+    <span class="topbar-title" id="topbarTitle">Overview</span>
+    <span class="topbar-time" id="topbarTime"></span>
+  </div>
+
+  <!-- ── OVERVIEW ── -->
+  <div class="page-content active" id="page-overview">
+    <div>
+      <div class="section-eyebrow">Dashboard</div>
+      <div class="section-heading">Overview</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-icon blue">👥</div>
+        <div><div class="stat-label">Total Users</div><div class="stat-value" id="statUsers">—</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon amber">🏛️</div>
+        <div><div class="stat-label">Buildings</div><div class="stat-value" id="statBuildings">—</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">📢</div>
+        <div><div class="stat-label">Active Alerts</div><div class="stat-value" id="statActive">—</div></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple">🚪</div>
+        <div><div class="stat-label">Total Rooms</div><div class="stat-value" id="statRooms">—</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="panel-title-icon" style="background:#dbeafe;">👥</div>
+          Recent Users
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="loadUsers()">↻ Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>User ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Joined</th>
+            </tr>
+          </thead>
+          <tbody id="overviewUserTable">
+            <tr><td colspan="5" class="loading-msg">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CAMPUS ALERTS ── -->
+  <div class="page-content" id="page-alerts">
+    <div>
+      <div class="section-eyebrow">Manage</div>
+      <div class="section-heading">Campus Alerts</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="panel-title-icon" style="background:#dbeafe;">📢</div>
+          Post Announcement
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="loadAnnouncements()">↻ Refresh</button>
+      </div>
+      <div class="panel-form">
+        <div class="form-group">
+          <label>Announcement Message *</label>
+          <input id="annMessage" class="form-input" type="text" placeholder="e.g. Library extended hours during finals week — Open until 10:00 PM" maxlength="200">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Type</label>
+            <select id="annType" class="form-select">
+              <option value="info">📢 Info</option>
+              <option value="warning">⚠️ Warning</option>
+              <option value="emergency">🚨 Emergency</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Expires At (optional)</label>
+            <input id="annExpires" class="form-input" type="datetime-local">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-ghost" onclick="clearAnnForm()">Clear</button>
+          <button class="btn btn-primary" id="btnPostAnn" onclick="postAnnouncement()">📢 Post Announcement</button>
+        </div>
+      </div>
+      <div class="items-list" id="annList">
+        <div class="loading-msg">Loading announcements…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BUILDINGS ── -->
+  <div class="page-content" id="page-buildings">
+    <div>
+      <div class="section-eyebrow">Manage</div>
+      <div class="section-heading">Buildings</div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="panel-title-icon" style="background:#fef3c7;">🏛️</div>
+          Campus Buildings
+          <span id="buildingCountBadge" style="
+            background:#fef3c7;color:#92400e;
+            font-size:11px;font-weight:700;
+            padding:2px 10px;border-radius:999px;
+            margin-left:6px;
+          "></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" onclick="openAddBuilding()">➕ Add Building</button>
+          <input id="buildingSearch" class="form-input" type="text" placeholder="🔍 Search buildings…"
+            style="font-size:12px;padding:6px 12px;width:180px;" oninput="filterBuildings()">
+          <select id="buildingTypeFilter" class="form-select" style="font-size:12px;padding:6px 10px;" onchange="filterBuildings()">
+            <option value="">All Types</option>
+            <option value="department">Department</option>
+            <option value="administration">Administration</option>
+            <option value="facilities">Facilities</option>
+            <option value="office">Office</option>
+            <option value="landmark">Landmark</option>
+          </select>
+        </div>
+      </div>
+      <div class="panel-form" id="buildingFormWrap" style="display:none;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Building Name *</label>
+            <input id="buildingName" class="form-input" type="text" placeholder="e.g. College of Engineering">
+          </div>
+          <div class="form-group">
+            <label>Short Name *</label>
+            <input id="buildingShortName" class="form-input" type="text" placeholder="e.g. COE">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Type</label>
+            <select id="buildingType" class="form-select">
+              <option value="department">Department</option>
+              <option value="administration">Administration</option>
+              <option value="facilities">Facilities</option>
+              <option value="office">Office</option>
+              <option value="landmark">Landmark</option>
+            </select>
+          </div>
+          <div class="form-group" style="justify-content:flex-end;">
+            <label>&nbsp;</label>
+            <div style="display:flex;gap:10px;">
+              <button class="btn btn-ghost" onclick="cancelBuildingEdit()">Cancel</button>
+              <button class="btn btn-primary" id="btnSaveBuilding" onclick="saveBuilding()">➕ Add Building</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Latitude (click map to set)</label>
+            <input id="buildingLat" class="form-input" type="number" step="any" placeholder="e.g. 15.31695">
+          </div>
+          <div class="form-group">
+            <label>Longitude (click map to set)</label>
+            <input id="buildingLng" class="form-input" type="number" step="any" placeholder="e.g. 119.98315">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>
+            Pin on Map
+            <button type="button" class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="toggleBuildingMapPicker()">
+              🗺️ Open Map Picker
+            </button>
+          </label>
+          <div id="buildingMapPicker" style="width:100%;height:280px;border-radius:10px;border:1.5px solid var(--border);margin-top:6px;display:none;"></div>
+          <div class="coords-display" id="buildingCoordsDisplay">No location pinned yet.</div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Name</th><th>Short Name</th><th>Type</th><th>Location</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="buildingsTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ROOMS ── -->
+  <div class="page-content" id="page-rooms">
+    <div>
+      <div class="section-eyebrow">Manage</div>
+      <div class="section-heading">Rooms</div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="panel-title-icon" style="background:#ede9fe;">🚪</div>
+          All Rooms
+          <span id="roomCountBadge" style="
+            background:#ede9fe;color:#5b21b6;
+            font-size:11px;font-weight:700;
+            padding:2px 10px;border-radius:999px;
+            margin-left:6px;
+          "></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" onclick="openAddRoom()">➕ Add Room</button>
+          <input id="roomSearch" class="form-input" type="text" placeholder="🔍 Search rooms…"
+              style="font-size:12px;padding:6px 12px;width:180px;" oninput="filterRooms()">
+          <select id="roomBuildingFilter" class="form-select" style="font-size:12px;padding:6px 10px;" onchange="filterRooms()">
+            <option value="">All Buildings</option>
+          </select>
+        </div>
+      </div>
+      <div class="panel-form" id="roomFormWrap" style="display:none;">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Room Name *</label>
+            <input id="roomName" class="form-input" type="text" placeholder="e.g. CCIT Room 5">
+          </div>
+          <div class="form-group">
+            <label>Building *</label>
+            <select id="roomBuilding" class="form-select"></select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Floor</label>
+            <input id="roomFloor" class="form-input" type="text" placeholder="e.g. Ground Floor">
+          </div>
+          <div class="form-group">
+            <label>Instructor (optional)</label>
+            <input id="roomInstructor" class="form-input" type="text" placeholder="e.g. Mr. Juan dela Cruz">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-ghost" onclick="cancelRoomEdit()">Cancel</button>
+          <button class="btn btn-primary" id="btnSaveRoom" onclick="saveRoom()">➕ Add Room</button>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Latitude (click map to set)</label>
+            <input id="roomLat" class="form-input" type="number" step="any" placeholder="e.g. 15.31695">
+          </div>
+          <div class="form-group">
+            <label>Longitude (click map to set)</label>
+            <input id="roomLng" class="form-input" type="number" step="any" placeholder="e.g. 119.98315">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>
+            Pin on Map
+            <button type="button" class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="toggleRoomMapPicker()">
+              🗺️ Open Map Picker
+            </button>
+          </label>
+          <div id="roomMapPicker"></div>
+          <div class="coords-display" id="coordsDisplay">No location pinned yet.</div>
+        </div>
+      </div>
+        <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Room Name</th><th>Building</th><th>Floor</th><th>Instructor</th><th>Location</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="roomsTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── USERS ── -->
+  <div class="page-content" id="page-users">
+    <div>
+      <div class="section-eyebrow">Manage</div>
+      <div class="section-heading">Users</div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="panel-title-icon" style="background:#dcfce7;">👥</div>
+          All Users
+          <span id="userCountBadge" style="
+            background:#dcfce7;color:#15803d;
+            font-size:11px;font-weight:700;
+            padding:2px 10px;border-radius:999px;
+            margin-left:6px;
+          "></span>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="loadUsers()">↻ Refresh</button>
+      </div>
+      <div style="padding:12px 22px;border-bottom:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;background:#f8fafc;">
+        <input id="userSearch" class="form-input" type="text" placeholder="🔍 Search name or email…"
+          style="flex:1;min-width:180px;font-size:12px;padding:7px 12px;"
+          oninput="filterUsers()">
+        <select id="userRoleFilter" class="form-select" style="font-size:12px;padding:7px 10px;" onchange="filterUsers()">
+          <option value="">All Roles</option>
+          <option value="STUDENT">Student</option>
+          <option value="EMPLOYEE">Employee</option>
+          <option value="VISITOR">Visitor</option>
+          <option value="ADMIN">Admin</option>
+        </select>
+        <select id="userSortFilter" class="form-select" style="font-size:12px;padding:7px 10px;" onchange="filterUsers()">
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>User ID</th><th>Name</th><th>Email</th><th>Role</th><th>Joined</th></tr>
+          </thead>
+          <tbody id="usersTable">
+            <tr><td colspan="5" class="loading-msg">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- ── PROFILE PANEL ── -->
+<div class="profile-overlay" id="profileOverlay" onclick="closeProfile()"></div>
+<div class="profile-panel" id="profilePanel">
+  <div class="profile-panel-header">
+    <button class="profile-close" onclick="closeProfile()">✕</button>
+    <div class="profile-avatar-wrap">
+      <div class="profile-avatar-lg" id="profileAvatarLg">A</div>
+      <div class="profile-avatar-edit" onclick="document.getElementById('profilePhotoInput').click()">📷</div>
+      <input type="file" id="profilePhotoInput" accept="image/*" onchange="uploadProfilePhoto(this)">
+    </div>
+    <div class="profile-panel-name" id="profilePanelName">Admin</div>
+    <div class="profile-panel-role">Administrator</div>
+    <div class="profile-panel-id" id="profilePanelId">ID: —</div>
+  </div>
+
+  <div class="profile-section-title">Account Details</div>
+  <div class="profile-detail-card">
+    <div class="profile-detail-row">
+      <span class="profile-detail-label">Full Name</span>
+      <span class="profile-detail-value" id="profileFullName">—</span>
+    </div>
+    <div class="profile-detail-row">
+      <span class="profile-detail-label">Email</span>
+      <span class="profile-detail-value" id="profileEmail">—</span>
+    </div>
+    <div class="profile-detail-row">
+      <span class="profile-detail-label">Phone</span>
+      <span class="profile-detail-value" id="profilePhone">—</span>
+    </div>
+    <div class="profile-detail-row">
+      <span class="profile-detail-label">Role</span>
+      <span class="profile-detail-value" id="profileRole">—</span>
+    </div>
+    <div class="profile-detail-row">
+      <span class="profile-detail-label">User ID</span>
+      <span class="profile-detail-value" id="profileUserId">—</span>
+    </div>
+  </div>
+  <button class="profile-signout" onclick="adminLogout()">🚪 Sign Out</button>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal-box">
+    <h3>Delete this item?</h3>
+    <p id="deleteModalMsg">This action cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+
+// ── AUTH ──
+const AUTH_SESSION_KEY = 'campusNavigatorSession';
+function getSession(){try{return JSON.parse(localStorage.getItem(AUTH_SESSION_KEY));}catch{return null;}}
+function adminLogout(){localStorage.removeItem(AUTH_SESSION_KEY);window.location.href='/';}
+
+(function guardAdmin(){
+  const s = getSession();
+  if(!s||(s.role||'').toUpperCase()!=='ADMIN'){alert('Access denied.');window.location.href='/';return;}
+  const initials = (s.name||'A').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+  document.getElementById('sidebarAvatar').textContent = initials;
+  document.getElementById('sidebarName').textContent   = s.name || 'Admin';
+  // Load photo immediately on page load
+  fetch(`/api/auth/profile/${s.userId}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok && data.user.photo) {
+        const photoHtml = `<img src="${data.user.photo}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+        document.getElementById('sidebarAvatar').innerHTML = photoHtml;
+      }
+    })
+    .catch(() => {});
+})();
+
+// ── CLOCK ──
+function updateClock(){
+  const now=new Date();
+  const h=now.getHours(),m=now.getMinutes();
+  const ap=h>=12?'PM':'AM';
+  const dh=h%12||12;
+  document.getElementById('topbarTime').textContent=
+    `${dh}:${String(m).padStart(2,'0')} ${ap}`;
+}
+updateClock();setInterval(updateClock,1000);
+
+// ── NAVIGATION ──
+const PAGE_TITLES={overview:'Overview',alerts:'Campus Alerts',buildings:'Buildings',rooms:'Rooms',users:'Users'};
+
+function showPage(id, el){
+  document.querySelectorAll('.page-content').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el) el.classList.add('active');
+  document.getElementById('topbarTitle').textContent = PAGE_TITLES[id]||id;
+  if(id==='users'||id==='overview') loadUsers();
+  if(id==='overview') loadStats();
+  if(id==='alerts') loadAnnouncements();
+  if(id==='buildings') loadBuildings();
+  if(id==='rooms') loadRooms();
+}
+
+// ── TOAST ──
+function showToast(msg,type='info'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className=`toast ${type} show`;
+  setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+// ── DELETE MODAL ──
+let pendingDelete=null;
+
+function openDeleteModal(type, id, label) {
+  pendingDelete = { type, id };
+  document.getElementById('deleteModalMsg').textContent =
+    `"${label}" will be permanently deleted.`;
+  document.getElementById('deleteModal').classList.add('active');
+}
+
+function closeDeleteModal(){pendingDelete=null;document.getElementById('deleteModal').classList.remove('active');}
+
+async function confirmDelete(){
+  if(!pendingDelete)return;
+  const{type,id}=pendingDelete;closeDeleteModal();
+  if(type==='building'){
+    try{
+      const res=await fetch(`/api/admin/buildings/${id}`,{method:'DELETE'});
+      const data=await res.json();
+      if(!res.ok||!data.ok)throw new Error(data.error||'Delete failed');
+      showToast('Building deleted','success');
+      loadBuildings();
+    }catch(err){showToast(err.message,'error');}
+    return;
+  }
+  if(type==='room'){
+    try{
+      const res=await fetch(`/api/admin/rooms/${id}`,{method:'DELETE'});
+      const data=await res.json();
+      if(!res.ok||!data.ok)throw new Error(data.error||'Delete failed');
+      showToast('Room deleted','success');
+      loadRooms();
+    }catch(err){showToast(err.message,'error');}
+    return;
+  }
+  if(type==='announcement'){
+    try{
+      const res=await fetch(`/api/admin/announcements/${id}`,{method:'DELETE'});
+      const data=await res.json();
+      if(!res.ok||!data.ok)throw new Error(data.error||'Delete failed');
+      showToast('Deleted successfully','success');
+      loadAnnouncements();
+    }catch(err){showToast(err.message,'error');}
+    return;
+  }
+}
+// ── STATS ──
+async function loadStats(){
+  try{
+    const annRes = await fetch('/api/announcements');
+    const annData = await annRes.json();
+    const anns = annData.announcements || [];
+    const now = new Date();
+    const active = anns.filter(a => a.is_active && (!a.expires_at || new Date(a.expires_at) > now)).length;
+    document.getElementById('statActive').textContent = active;
+  }catch{}
+
+  try{
+    const usersRes = await fetch('/api/admin/stats/users');
+    const usersData = await usersRes.json();
+    document.getElementById('statUsers').textContent = usersData.total || 0;
+  }catch{}
+
+  try{
+    const buildingsRes = await fetch('/api/buildings');
+    const buildingsData = await buildingsRes.json();
+    document.getElementById('statBuildings').textContent = (buildingsData.buildings||[]).length || 0;
+  }catch{}
+
+  try{
+    const roomsRes = await fetch('/api/rooms');
+    const roomsData = await roomsRes.json();
+    document.getElementById('statRooms').textContent = (roomsData.rooms||[]).length || 0;
+  }catch{}
+}
+
+// ── USERS ──
+// ── USERS ──
+let allUsers = [];
+
+async function loadUsers(){
+  const tbody=document.getElementById('usersTable');
+  const overview=document.getElementById('overviewUserTable');
+  if(tbody)tbody.innerHTML='<tr><td colspan="5" class="loading-msg">Loading…</td></tr>';
+  if(overview)overview.innerHTML='<tr><td colspan="5" class="loading-msg">Loading…</td></tr>';
+  try{
+    const res=await fetch('/api/admin/users');
+    const data=await res.json();
+    allUsers=data.users||[];
+    filterUsers();
+    // Overview table always shows latest 8
+    if(overview)overview.innerHTML=allUsers.slice(0,8).map(u=>`
+      <tr>
+        <td><code style="font-size:11px;background:#f1f5f9;padding:2px 6px;border-radius:4px;">${escHtml(u.user_id)}</code></td>
+        <td>${escHtml(u.full_name)}</td>
+        <td style="color:var(--muted)">${escHtml(u.email)}</td>
+        <td><span class="role-badge role-${(u.role||'').toLowerCase()}">${escHtml(u.role)}</span></td>
+        <td style="color:var(--muted)">${u.created_at?new Date(u.created_at).toLocaleDateString():'-'}</td>
+      </tr>`).join('');
+  }catch(err){
+    const msg=`<tr><td colspan="5" class="loading-msg" style="color:#ef4444;">Failed: ${err.message}</td></tr>`;
+    if(tbody)tbody.innerHTML=msg;
+    if(overview)overview.innerHTML=msg;
+  }
+}
+
+function filterUsers(){
+  const tbody=document.getElementById('usersTable');
+  const search=(document.getElementById('userSearch')?.value||'').toLowerCase();
+  const role=document.getElementById('userRoleFilter')?.value||'';
+  const sort=document.getElementById('userSortFilter')?.value||'newest';
+  const badge=document.getElementById('userCountBadge');
+
+  let filtered=[...allUsers];
+
+  // Filter by search
+  if(search) filtered=filtered.filter(u=>
+    (u.full_name||'').toLowerCase().includes(search)||
+    (u.email||'').toLowerCase().includes(search)
+  );
+
+  // Filter by role
+  if(role) filtered=filtered.filter(u=>(u.role||'')===role);
+
+  // Sort
+  filtered.sort((a,b)=>{
+    const da=new Date(a.created_at||0);
+    const db=new Date(b.created_at||0);
+    return sort==='newest'?db-da:da-db;
+  });
+
+  // Update badge
+  if(badge) badge.textContent=role||search
+    ?`${filtered.length} of ${allUsers.length} users`
+    :`${allUsers.length} users total`;
+
+  if(!filtered.length){
+    tbody.innerHTML='<tr><td colspan="5" class="loading-msg">No users found.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML=filtered.map(u=>`
+    <tr>
+      <td><code style="font-size:11px;background:#f1f5f9;padding:2px 6px;border-radius:4px;">${escHtml(u.user_id)}</code></td>
+      <td>${escHtml(u.full_name)}</td>
+      <td style="color:var(--muted)">${escHtml(u.email)}</td>
+      <td><span class="role-badge role-${(u.role||'').toLowerCase()}">${escHtml(u.role)}</span></td>
+      <td style="color:var(--muted)">${u.created_at?new Date(u.created_at).toLocaleDateString():'-'}</td>
+    </tr>`).join('');
+}
+
+// ── ANNOUNCEMENTS ──
+async function loadAnnouncements(){
+  const list=document.getElementById('annList');
+  list.innerHTML='<div class="loading-msg">Loading…</div>';
+  try{
+    const res=await fetch('/api/announcements');
+    const data=await res.json();
+    const anns=data.announcements||[];
+    if(!anns.length){list.innerHTML='<div class="empty-state"><span class="emoji">📭</span>No announcements yet.</div>';return;}
+    const now=new Date();
+    list.innerHTML=anns.map(a=>{
+      const expired=a.expires_at&&new Date(a.expires_at)<now;
+      const badgeClass={info:'badge-info',warning:'badge-warning',emergency:'badge-emergency'}[a.type]||'badge-info';
+      const typeLabel={info:'📢 Info',warning:'⚠️ Warning',emergency:'🚨 Emergency'}[a.type]||a.type;
+      return`<div class="item-card" style="${expired?'opacity:0.5;':''}">
+        <span class="item-badge ${badgeClass}">${typeLabel}</span>
+        <div class="item-body">
+          <div class="item-title">${escHtml(a.message)}</div>
+          <div class="item-meta">
+            <span>${new Date(a.created_at).toLocaleString()}</span>
+            ${a.expires_at?`<span>· Expires ${new Date(a.expires_at).toLocaleString()}</span>`:''}
+            ${expired?'<span style="color:#ef4444;font-weight:700;">EXPIRED</span>':''}
+          </div>
+        </div>
+        <div class="item-actions">
+          <button class="icon-btn delete" title="Delete" onclick="openDeleteModal('announcement',${a.id},this.dataset.label)" data-label="${escHtml(a.message)}">🗑️</button>
+        </div>
+      </div>`;
+    }).join('');
+    loadStats();
+  }catch(err){list.innerHTML=`<div class="loading-msg" style="color:#ef4444;">Failed: ${err.message}</div>`;}
+}
+
+async function postAnnouncement(){
+  const message=document.getElementById('annMessage').value.trim();
+  const type=document.getElementById('annType').value;
+  const expires=document.getElementById('annExpires').value;
+  if(!message){showToast('Please enter a message','error');return;}
+  const btn=document.getElementById('btnPostAnn');
+  btn.disabled=true;btn.textContent='Posting…';
+  try{
+    const res=await fetch('/api/admin/announcements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message,type,expires_at:expires||null})});
+    const data=await res.json();
+    if(!res.ok||!data.ok)throw new Error(data.error||'Post failed');
+    showToast('Announcement posted!','success');clearAnnForm();loadAnnouncements();
+  }catch(err){showToast(err.message,'error');}
+  finally{btn.disabled=false;btn.innerHTML='📢 Post Announcement';}
+}
+
+function clearAnnForm(){
+  document.getElementById('annMessage').value='';
+  document.getElementById('annType').value='info';
+  document.getElementById('annExpires').value='';
+}
+
+
+let editingRoomIndex = null;
+let roomPickerMap = null;
+let roomPickerMarker = null;
+
+function toggleRoomMapPicker() {
+  const container = document.getElementById('roomMapPicker');
+  const isVisible = container.style.display === 'block';
+  container.style.display = isVisible ? 'none' : 'block';
+  if (!isVisible) setTimeout(() => initRoomMapPicker(), 100);
+}
+
+function initRoomMapPicker() {
+  if (roomPickerMap) { roomPickerMap.invalidateSize(); return; }
+  roomPickerMap = L.map('roomMapPicker').setView([15.31846, 119.98388], 18);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 20, attribution: '© OpenStreetMap'
+  }).addTo(roomPickerMap);
+  const lat = parseFloat(document.getElementById('roomLat').value);
+  const lng = parseFloat(document.getElementById('roomLng').value);
+  if (lat && lng) placeRoomPin(lat, lng);
+  roomPickerMap.on('click', function(e) { placeRoomPin(e.latlng.lat, e.latlng.lng); });
+}
+
+function placeRoomPin(lat, lng) {
+  if (roomPickerMarker) roomPickerMap.removeLayer(roomPickerMarker);
+  roomPickerMarker = L.marker([lat, lng], { draggable: true }).addTo(roomPickerMap);
+  roomPickerMarker.on('dragend', function(e) {
+    const pos = e.target.getLatLng();
+    setRoomCoords(pos.lat, pos.lng);
+  });
+  setRoomCoords(lat, lng);
+  roomPickerMap.setView([lat, lng], 20);
+}
+
+function setRoomCoords(lat, lng) {
+  const rLat = parseFloat(lat.toFixed(6));
+  const rLng = parseFloat(lng.toFixed(6));
+  document.getElementById('roomLat').value = rLat;
+  document.getElementById('roomLng').value = rLng;
+  document.getElementById('coordsDisplay').textContent =
+    `📍 Pinned at: ${rLat}, ${rLng} (drag pin to adjust)`;
+}
+
+function openAddRoom() {
+  editingRoomIndex = null;
+  ['roomName','roomBuilding','roomFloor','roomInstructor','roomLat','roomLng']
+    .forEach(id => document.getElementById(id).value = '');
+  document.getElementById('coordsDisplay').textContent = 'No location pinned yet.';
+  document.getElementById('btnSaveRoom').innerHTML = '➕ Add Room';
+  document.getElementById('roomFormWrap').style.display = 'flex';
+  if (roomPickerMap) { roomPickerMap.remove(); roomPickerMap = null; roomPickerMarker = null; }
+  document.getElementById('roomMapPicker').style.display = 'none';
+  document.getElementById('roomName').focus();
+}
+
+function openEditRoom(id, name, building, floor, instructor, lat, lng) {
+  editingRoomIndex = id;
+  document.getElementById('roomName').value = name;
+  document.getElementById('roomBuilding').value = building;
+  document.getElementById('roomFloor').value = floor === '—' ? '' : floor;
+  document.getElementById('roomInstructor').value = instructor || '';
+  document.getElementById('roomLat').value = lat || '';
+  document.getElementById('roomLng').value = lng || '';
+  document.getElementById('coordsDisplay').textContent =
+    lat && lng ? `📍 Pinned at: ${lat}, ${lng}` : 'No location pinned yet.';
+  document.getElementById('btnSaveRoom').innerHTML = '💾 Save Changes';
+  document.getElementById('roomFormWrap').style.display = 'flex';
+  if (roomPickerMap) { roomPickerMap.remove(); roomPickerMap = null; roomPickerMarker = null; }
+  document.getElementById('roomMapPicker').style.display = 'none';
+  document.getElementById('roomName').focus();
+  document.getElementById('roomFormWrap').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelRoomEdit() {
+  editingRoomIndex = null;
+  document.getElementById('roomFormWrap').style.display = 'none';
+  if (roomPickerMap) { roomPickerMap.remove(); roomPickerMap = null; roomPickerMarker = null; }
+  document.getElementById('roomMapPicker').style.display = 'none';
+}
+
+async function saveRoom() {
+  const name       = document.getElementById('roomName').value.trim();
+  const building   = document.getElementById('roomBuilding').value.trim();
+  const floor      = document.getElementById('roomFloor').value.trim() || '—';
+  const instructor = document.getElementById('roomInstructor').value.trim();
+  const lat        = parseFloat(document.getElementById('roomLat').value) || null;
+  const lng        = parseFloat(document.getElementById('roomLng').value) || null;
+  if (!name)     { showToast('Room name is required', 'error'); return; }
+  if (!building) { showToast('Please select a building', 'error'); return; }
+  const btn = document.getElementById('btnSaveRoom');
+  btn.disabled = true;
+  try {
+    const url    = editingRoomIndex !== null ? `/api/admin/rooms/${editingRoomIndex}` : '/api/admin/rooms';
+    const method = editingRoomIndex !== null ? 'PUT' : 'POST';
+    const res  = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ building, name, floor, instructor: instructor || null, lat, lng })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Save failed');
+    showToast(editingRoomIndex ? 'Room updated!' : 'Room added!', 'success');
+    cancelRoomEdit();
+    loadRooms();
+  } catch(err) { showToast(err.message, 'error'); }
+  finally { btn.disabled = false; }
+}
+
+function deleteRoom(id, name) {
+  openDeleteModal('room', id, name);
+}
+
+let allRooms = [];
+
+async function loadRooms() {
+  const tbody = document.getElementById('roomsTable');
+  tbody.innerHTML = '<tr><td colspan="6" class="loading-msg">Loading…</td></tr>';
+  try {
+    const res  = await fetch('/api/rooms');
+    const data = await res.json();
+    allRooms = data.rooms || [];
+    populateBuildingFilter(allRooms);
+    filterRooms();
+  } catch(err) {
+    tbody.innerHTML = `<tr><td colspan="6" class="loading-msg" style="color:#ef4444;">Failed: ${err.message}</td></tr>`;
+  }
+}
+
+function filterRooms() {
+  const tbody = document.getElementById('roomsTable');
+  const filter = document.getElementById('roomBuildingFilter').value;
+  const search = (document.getElementById('roomSearch')?.value || '').toLowerCase();
+  const badge = document.getElementById('roomCountBadge');
+
+  const filtered = allRooms.filter(r =>
+    (!filter || r.building === filter) &&
+    (!search || r.name.toLowerCase().includes(search) || r.building.toLowerCase().includes(search))
+  );
+
+  if (badge) badge.textContent = filter || search
+    ? `${filtered.length} of ${allRooms.length} rooms`
+    : `${allRooms.length} rooms total`;
+
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="loading-msg">No rooms found.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(r => `<tr>
+    <td style="font-weight:600">🚪 ${escHtml(r.name)}</td>
+    <td><code style="font-size:11px;background:#f1f5f9;padding:2px 7px;border-radius:4px;">${escHtml(r.building)}</code></td>
+    <td style="color:var(--muted)">${escHtml(r.floor)}</td>
+    <td style="color:var(--muted);font-size:12px">${r.instructor ? '👨‍🏫 ' + escHtml(r.instructor) : '—'}</td>
+    <td style="color:var(--muted);font-size:12px">${r.lat && r.lng ? '📍 Pinned' : '—'}</td>
+    <td>
+      <div style="display:flex;gap:5px;">
+        <button class="icon-btn" title="Edit"
+          onclick="openEditRoom(${r.id},'${escHtml(r.name)}','${escHtml(r.building)}','${escHtml(r.floor)}','${escHtml(r.instructor||'')}',${r.lat||'null'},${r.lng||'null'})">✏️</button>
+        <button class="icon-btn delete" title="Delete"
+          onclick="deleteRoom(${r.id},'${escHtml(r.name)}')">🗑️</button>
+      </div>
+    </td>
+  </tr>`).join('');
+}
+function populateBuildingFilter(rooms) {
+  const sel = document.getElementById('roomBuildingFilter');
+  const current = sel.value;
+  while (sel.options.length > 1) sel.remove(1);
+  const names = [...new Set((rooms || []).map(r => r.building))].sort();
+  names.forEach(n => {
+    const o = document.createElement('option'); o.value = n; o.textContent = n; sel.appendChild(o);
+  });
+  sel.value = current;
+  const bSel = document.getElementById('roomBuilding');
+  bSel.innerHTML = '<option value="">Select building…</option>';
+  names.forEach(n => {
+    const o = document.createElement('option'); o.value = n; o.textContent = n; bSel.appendChild(o);
+  });
+}
+
+// ── BUILDING MAP PICKER ──
+let buildingPickerMap = null;
+let buildingPickerMarker = null;
+let editingBuildingId = null;
+
+function toggleBuildingMapPicker() {
+  const container = document.getElementById('buildingMapPicker');
+  const isVisible = container.style.display === 'block';
+  container.style.display = isVisible ? 'none' : 'block';
+  if (!isVisible) setTimeout(() => initBuildingMapPicker(), 100);
+}
+
+function initBuildingMapPicker() {
+  if (buildingPickerMap) { buildingPickerMap.invalidateSize(); return; }
+  buildingPickerMap = L.map('buildingMapPicker').setView([15.31846, 119.98388], 17);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 20, attribution: '© OpenStreetMap'
+  }).addTo(buildingPickerMap);
+  const lat = parseFloat(document.getElementById('buildingLat').value);
+  const lng = parseFloat(document.getElementById('buildingLng').value);
+  if (lat && lng) placeBuildingPin(lat, lng);
+  buildingPickerMap.on('click', function(e) { placeBuildingPin(e.latlng.lat, e.latlng.lng); });
+}
+
+function placeBuildingPin(lat, lng) {
+  if (buildingPickerMarker) buildingPickerMap.removeLayer(buildingPickerMarker);
+  buildingPickerMarker = L.marker([lat, lng], { draggable: true }).addTo(buildingPickerMap);
+  buildingPickerMarker.on('dragend', function(e) {
+    const pos = e.target.getLatLng();
+    setBuildingCoords(pos.lat, pos.lng);
+  });
+  setBuildingCoords(lat, lng);
+  buildingPickerMap.setView([lat, lng], 19);
+}
+
+function setBuildingCoords(lat, lng) {
+  const rLat = parseFloat(lat.toFixed(6));
+  const rLng = parseFloat(lng.toFixed(6));
+  document.getElementById('buildingLat').value = rLat;
+  document.getElementById('buildingLng').value = rLng;
+  document.getElementById('buildingCoordsDisplay').textContent =
+    `📍 Pinned at: ${rLat}, ${rLng} (drag pin to adjust)`;
+}
+
+function openAddBuilding() {
+  editingBuildingId = null;
+  ['buildingName','buildingShortName','buildingLat','buildingLng'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('buildingType').value = 'department';
+  document.getElementById('buildingCoordsDisplay').textContent = 'No location pinned yet.';
+  document.getElementById('btnSaveBuilding').innerHTML = '➕ Add Building';
+  document.getElementById('buildingFormWrap').style.display = 'flex';
+  if (buildingPickerMap) { buildingPickerMap.remove(); buildingPickerMap = null; buildingPickerMarker = null; }
+  document.getElementById('buildingMapPicker').style.display = 'none';
+  document.getElementById('buildingName').focus();
+}
+
+function openEditBuilding(id, name, shortName, type, lat, lng) {
+  editingBuildingId = id;
+  document.getElementById('buildingName').value = name;
+  document.getElementById('buildingShortName').value = shortName;
+  document.getElementById('buildingType').value = type || 'department';
+  document.getElementById('buildingLat').value = lat || '';
+  document.getElementById('buildingLng').value = lng || '';
+  document.getElementById('buildingCoordsDisplay').textContent =
+    lat && lng ? `📍 Pinned at: ${lat}, ${lng}` : 'No location pinned yet.';
+  document.getElementById('btnSaveBuilding').innerHTML = '💾 Save Changes';
+  document.getElementById('buildingFormWrap').style.display = 'flex';
+  if (buildingPickerMap) { buildingPickerMap.remove(); buildingPickerMap = null; buildingPickerMarker = null; }
+  document.getElementById('buildingMapPicker').style.display = 'none';
+  document.getElementById('buildingName').focus();
+  document.getElementById('buildingFormWrap').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelBuildingEdit() {
+  editingBuildingId = null;
+  document.getElementById('buildingFormWrap').style.display = 'none';
+  if (buildingPickerMap) { buildingPickerMap.remove(); buildingPickerMap = null; buildingPickerMarker = null; }
+  document.getElementById('buildingMapPicker').style.display = 'none';
+}
+
+async function saveBuilding() {
+  const name       = document.getElementById('buildingName').value.trim();
+  const short_name = document.getElementById('buildingShortName').value.trim();
+  const type       = document.getElementById('buildingType').value;
+  const lat        = parseFloat(document.getElementById('buildingLat').value) || null;
+  const lng        = parseFloat(document.getElementById('buildingLng').value) || null;
+  if (!name)       { showToast('Building name is required', 'error'); return; }
+  if (!short_name) { showToast('Short name is required', 'error'); return; }
+  const btn = document.getElementById('btnSaveBuilding');
+  btn.disabled = true;
+  try {
+    const url    = editingBuildingId !== null ? `/api/admin/buildings/${editingBuildingId}` : '/api/admin/buildings';
+    const method = editingBuildingId !== null ? 'PUT' : 'POST';
+    const res    = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, short_name, type, lat, lng })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'Save failed');
+    showToast(editingBuildingId ? 'Building updated!' : 'Building added!', 'success');
+    cancelBuildingEdit();
+    loadBuildings();
+  } catch(err) { showToast(err.message, 'error'); }
+  finally { btn.disabled = false; }
+}
+
+function deleteBuilding(id, name) {
+  openDeleteModal('building', id, name);
+}
+
+let allBuildings = [];
+
+async function loadBuildings() {
+  const tbody = document.getElementById('buildingsTable');
+  tbody.innerHTML = '<tr><td colspan="6" class="loading-msg">Loading…</td></tr>';
+  try {
+    const res  = await fetch('/api/buildings');
+    const data = await res.json();
+    allBuildings = data.buildings || [];
+    filterBuildings();
+  } catch(err) {
+    tbody.innerHTML = `<tr><td colspan="6" class="loading-msg" style="color:#ef4444;">Failed: ${err.message}</td></tr>`;
+  }
+}
+
+function filterBuildings() {
+  const tbody = document.getElementById('buildingsTable');
+  const filter = document.getElementById('buildingTypeFilter').value;
+  const search = (document.getElementById('buildingSearch')?.value || '').toLowerCase();
+  const badge = document.getElementById('buildingCountBadge');
+  const typeColors = {
+    department:     '#dbeafe;color:#1d4ed8',
+    administration: '#dcfce7;color:#15803d',
+    facilities:     '#fef3c7;color:#92400e',
+    office:         '#ede9fe;color:#5b21b6',
+    landmark:       '#fee2e2;color:#991b1b'
+  };
+
+  const filtered = allBuildings.filter(b =>
+    (!filter || b.type === filter) &&
+    (!search || b.name.toLowerCase().includes(search) || b.short_name.toLowerCase().includes(search))
+  );
+
+  if (badge) badge.textContent = filter || search
+    ? `${filtered.length} of ${allBuildings.length} buildings`
+    : `${allBuildings.length} buildings total`;
+
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="loading-msg">No buildings found.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((b, i) => {
+    const tc = typeColors[b.type] || '#f1f5f9;color:#64748b';
+    return `<tr>
+      <td style="color:var(--muted)">${i + 1}</td>
+      <td style="font-weight:600">${escHtml(b.name)}</td>
+      <td><code style="font-size:11px;background:#f1f5f9;padding:2px 7px;border-radius:4px;">${escHtml(b.short_name)}</code></td>
+      <td><span style="display:inline-block;padding:2px 9px;border-radius:999px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;background:${tc}">${escHtml(b.type)}</span></td>
+      <td style="color:var(--muted);font-size:12px">${b.lat && b.lng ? '📍 Pinned' : '—'}</td>
+      <td>
+        <div style="display:flex;gap:5px;">
+          <button class="icon-btn" title="Edit"
+            onclick="openEditBuilding(${b.id},'${escHtml(b.name)}','${escHtml(b.short_name)}','${escHtml(b.type)}',${b.lat||'null'},${b.lng||'null'})">✏️</button>
+          <button class="icon-btn delete" title="Delete"
+            onclick="deleteBuilding(${b.id},'${escHtml(b.name)}')">🗑️</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── UTILS ──
+function escHtml(str){return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── PROFILE PANEL ──
+async function openProfile() {
+  const s = getSession();
+  if (!s) return;
+  // Fill from session first
+  const initials = (s.name||'A').split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+  document.getElementById('profileAvatarLg').textContent = initials;
+  document.getElementById('profilePanelName').textContent = s.name || 'Admin';
+  document.getElementById('profilePanelId').textContent = 'ID: ' + (s.userId || '—');
+  document.getElementById('profileFullName').textContent = s.name || '—';
+  document.getElementById('profileEmail').textContent = s.email || '—';
+  document.getElementById('profileRole').textContent = s.role || '—';
+  document.getElementById('profileUserId').textContent = s.userId || '—';
+  // Show panel
+  document.getElementById('profileOverlay').classList.add('active');
+  document.getElementById('profilePanel').classList.add('active');
+  // Fetch full profile from DB
+  try {
+    const res = await fetch(`/api/auth/profile/${s.userId}`);
+    const data = await res.json();
+    if (data.ok) {
+      const u = data.user;
+      document.getElementById('profileFullName').textContent = u.name || '—';
+      document.getElementById('profileEmail').textContent = u.email || '—';
+      document.getElementById('profilePhone').textContent = u.phone || '—';
+      document.getElementById('profileRole').textContent = u.role || '—';
+      document.getElementById('profileUserId').textContent = u.userId || '—';
+      if (u.photo) {
+        const photoHtml = `<img src="${u.photo}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+        document.getElementById('profileAvatarLg').innerHTML = photoHtml;
+        document.getElementById('sidebarAvatar').innerHTML = photoHtml;
+      }
+    }
+  } catch {}
+}
+
+function closeProfile() {
+  document.getElementById('profileOverlay').classList.remove('active');
+  document.getElementById('profilePanel').classList.remove('active');
+}
+
+async function uploadProfilePhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) {
+    showToast('Image too large (max 2MB)', 'error'); return;
+  }
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    const photo = e.target.result; // base64
+    const s = getSession();
+    if (!s) return;
+    showToast('Uploading photo…', 'info');
+    try {
+      const res = await fetch('/api/auth/update-photo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: s.userId, photo })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Upload failed');
+      // Update avatar in panel and sidebar
+      document.getElementById('profileAvatarLg').innerHTML =
+        `<img src="${photo}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+      document.getElementById('sidebarAvatar').innerHTML =
+        `<img src="${photo}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+      showToast('Profile photo updated!', 'success');
+    } catch(err) {
+      showToast(err.message, 'error');
+    }
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', () => {
+  loadUsers();
+  loadBuildings();
+  loadRooms();
+  setTimeout(() => loadStats(), 500);
+  setInterval(loadStats, 10000);
+});
+</script>
+</body>
+</html>
